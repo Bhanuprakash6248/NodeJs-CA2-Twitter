@@ -5,6 +5,7 @@ const sqlite3 = require('sqlite3')
 
 const path = require('path')
 const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
 
 const app = express()
 app.use(express.json())
@@ -31,6 +32,41 @@ const initializeDbAndServer = async () => {
 
 initializeDbAndServer()
 
+const getFollowingPeopleIdsOfUser = async username => {
+  const followingPeopleQuery = `
+    SELECT following_user_id
+    FROM follower INNER JOIN user
+    ON user.user_id = follower.follower_user_id
+    WHERE user.username= "${username}";
+  `
+  const followingPeople = await db.all(followingPeopleQuery)
+  const arrayIds = followingPeople.map(each => each.following_user_id)
+  return arrayIds
+}
+
+//Authentication with JWT Token
+
+const authenticateToken = (request, response, next) => {
+  let jwtToken
+  const authHeader = request.headers['authorization']
+  if (authHeader !== undefined) {
+    jwtToken = authHeader.split(' ')[1]
+  }
+  if (jwtToken === undefined) {
+    response.status(401)
+    response.send('Invalid JWT Token')
+  } else {
+    jwt.verify(jwtToken, 'MY_SECRET_TOKEN', async (error, payload) => {
+      if (error) {
+        response.status(401)
+        response.send('Invalid JWT Token')
+      } else {
+        next()
+      }
+    })
+  }
+}
+
 //API-->1
 app.post('/register/', async (request, response) => {
   const {username, password, name, gender} = request.body
@@ -49,7 +85,7 @@ app.post('/register/', async (request, response) => {
           "${username}",
           "${hashedPassword}",
           "${name}",
-          "${gender}",
+          "${gender}"
         );
       `
       await db.run(createdQuery)
@@ -59,6 +95,67 @@ app.post('/register/', async (request, response) => {
     response.status(400)
     response.send('User already exists')
   }
+})
+
+//API --> 2 Login
+app.post('/login/', async (request, response) => {
+  const {username, password} = request.body
+  const selectUserQuery = `
+  SELECT *
+  FROM 
+    user
+  WHERE
+    username ="${username}";
+  `
+  const dbUser = await db.get(selectUserQuery)
+  if (dbUser === undefined) {
+    response.status(400)
+    response.send('Invalid user')
+  } else {
+    const isPasswordMatched = await bcrypt.compare(password, dbUser.password)
+
+    if (isPasswordMatched === true) {
+      const payload = {
+        username: username,
+      }
+      const jwtToken = jwt.sign(payload, 'MY_SECRET_TOKEN')
+      response.send({jwtToken})
+    } else {
+      response.send(400)
+      response.send('Invalid password')
+    }
+  }
+})
+
+app.get('/user/tweets/feed/', authenticateToken, async (request, response) => {
+  const {username} = request
+  const followingPeopleIds = await getFollowingPeopleIdsOfUser(username)
+
+  const latestTweetQuery = `
+    SELECT username,tweet,date_time as dateTime
+    FROM user INNER JOIN tweet
+    ON user.user_id = tweet.user_id
+    WHERE user.user_id IN (${followingPeopleIds})
+    ORDER BY date_time DESC
+    LIMIT 4 ;
+  `
+  const latestTweets = await db.all(latestTweetQuery)
+
+  response.send(latestTweets)
+})
+
+//API-4 --->list of all names
+
+app.get('/user/following/', authenticateToken, async (request, response) => {
+  const {userId, username} = request
+  const nameQuery = `
+    SELECT name 
+    FROM follower INNER JOIN user
+    ON user.user_id = follower.following_user_id
+    WHERE follower_user_id = "${userId}";
+  `
+  const followingPeople = await db.all(nameQuery)
+  response.send(followingPeople)
 })
 
 module.exports = app
