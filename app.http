@@ -1,4 +1,4 @@
-POST http://localhost:3000/register
+POST http://localhost:3000/register/
 Content-Type : application/json
 
 {
@@ -7,5 +7,25 @@ Content-Type : application/json
   "name": "Adam Richard",
   "gender": "male"
 }
+
+###
+
+POST http://localhost:3000/login/
+Content-Type : application/json
+
+{
+  "username":"JoeBiden",
+  "password":"biden@123"
+}
+
+###
+
+GET http://localhost:3000/user/tweets/feed/
+Authorization: bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkpvZUJpZGVuIiwiaWF0IjoxNzEzMTk3NDQ4fQ.o2c0NvO1ik7vBbBuTdFP4LwYLtnMLgYr_v2SZphAhGY
+
+###
+
+GET http://localhost:3000/user/following/
+Authorization: bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkpvZUJpZGVuIiwiaWF0IjoxNzEzMTk3NDQ4fQ.o2c0NvO1ik7vBbBuTdFP4LwYLtnMLgYr_v2SZphAhGY
 
 ###
